@@ -6,38 +6,248 @@
   <meta name="theme-color" content="#0f5132">
   <title>Каталог МЕТРПОЛА</title>
   <style>
-    :root { --bg:#f5f7f6; --card:#fff; --text:#17201c; --muted:#68736d; --accent:#0f6b42; --accent2:#e7f5ed; --line:#dfe6e2; --warn:#9a5a00; }
-    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-    .wrap{max-width:1180px;margin:auto;padding:16px}.top{display:flex;gap:14px;align-items:center;justify-content:space-between}.logo{font-weight:800;font-size:22px;letter-spacing:.02em}.logo span{color:var(--accent)}
-    .updated{font-size:12px;color:var(--muted);text-align:right}.controls{display:grid;grid-template-columns:minmax(180px,1fr) 230px 190px;gap:10px;margin-top:14px}
-    input,select{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:#fff;color:var(--text);font-size:15px;outline:none} input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,107,66,.1)}
-    .summary{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:20px 0 12px;color:var(--muted)} .pill{background:var(--accent2);color:var(--accent);border-radius:999px;padding:7px 11px;font-weight:700;font-size:13px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:240px;box-shadow:0 2px 8px rgba(24,42,33,.035)}
-    .category{font-size:12px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.04em}.name{font-size:16px;font-weight:750;line-height:1.35;margin:8px 0 9px}.meta{font-size:13px;color:var(--muted);min-height:38px}.price{font-size:22px;font-weight:800;margin-top:auto;padding-top:14px}.stock{margin-top:8px;font-size:14px;font-weight:650}.ok{color:var(--accent)}.zero{color:#8a3030}.unknown{color:var(--muted)}.supply{margin-top:6px;color:var(--warn);font-size:13px}.actions{display:flex;gap:8px;margin-top:14px}
+    :root{--bg:#f5f7f6;--card:#fff;--text:#17201c;--muted:#68736d;--accent:#0f6b42;--accent2:#e7f5ed;--line:#dfe6e2;--warn:#9a5a00;--danger:#8a3030}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+    .wrap{max-width:1240px;margin:auto;padding:16px}.top{display:flex;gap:14px;align-items:center;justify-content:space-between}.logo{font-weight:800;font-size:22px;letter-spacing:.02em}.logo span{color:var(--accent)}
+    .updated{font-size:12px;color:var(--muted);text-align:right;line-height:1.45}.controls{display:grid;grid-template-columns:minmax(230px,1.4fr) repeat(3,minmax(160px,.65fr));gap:10px;margin-top:14px}.controls.second{grid-template-columns:repeat(3,minmax(180px,1fr)) auto;margin-top:10px}
+    input,select{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:#fff;color:var(--text);font-size:15px;outline:none}input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(15,107,66,.1)}select:disabled{opacity:.55;background:#f1f3f2}
+    .reset{background:#eef2f0;color:var(--text);white-space:nowrap;padding:0 18px;border:1px solid var(--line)}
+    .summary{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:20px 0 12px;color:var(--muted)}.pill{background:var(--accent2);color:var(--accent);border-radius:999px;padding:7px 11px;font-weight:700;font-size:13px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:255px;box-shadow:0 2px 8px rgba(24,42,33,.035)}
+    .category{font-size:12px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.04em}.name{font-size:16px;font-weight:750;line-height:1.35;margin:8px 0 9px}.meta{font-size:13px;color:var(--muted);min-height:40px;line-height:1.45}.mount{display:inline-block;margin-top:5px;background:#f0f4f2;border-radius:999px;padding:3px 8px;font-size:11px;color:#405049}.price{font-size:22px;font-weight:800;margin-top:auto;padding-top:14px}.stock{margin-top:8px;font-size:14px;font-weight:650}.ok{color:var(--accent)}.zero{color:var(--danger)}.unknown{color:var(--muted)}.supply{margin-top:6px;color:var(--warn);font-size:13px}.actions{display:flex;gap:8px;margin-top:14px}
     button{border:0;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer}.primary{background:var(--accent);color:#fff;flex:1}.secondary{background:#eef2f0;color:var(--text)}
-    .empty{padding:50px 20px;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:16px}.modal{position:fixed;inset:0;background:rgba(4,14,9,.58);display:none;align-items:flex-end;justify-content:center;z-index:40}.modal.open{display:flex}.sheet{background:#fff;width:min(820px,100%);max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:22px}.sheethead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.close{font-size:23px;background:#eef2f0;padding:4px 10px}.detailname{font-size:22px;font-weight:800;line-height:1.25}.desc{line-height:1.55;color:#38433e;margin:18px 0}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}.fact{padding:10px 12px;border-bottom:1px solid var(--line)}.fact:nth-child(odd){border-right:1px solid var(--line)}.fact b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.detailprice{font-size:26px;font-weight:850;margin:15px 0 6px}
-    footer{color:var(--muted);font-size:12px;padding:30px 16px;text-align:center}@media(max-width:720px){.controls{grid-template-columns:1fr}.updated{display:none}.wrap{padding:12px}.grid{grid-template-columns:1fr}.facts{grid-template-columns:1fr}.fact:nth-child(odd){border-right:0}}
+    .empty{grid-column:1/-1;padding:50px 20px;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:16px}
+    .modal{position:fixed;inset:0;background:rgba(4,14,9,.58);display:none;align-items:flex-end;justify-content:center;z-index:40}.modal.open{display:flex}.sheet{background:#fff;width:min(920px,100%);max-height:94vh;overflow:auto;border-radius:22px 22px 0 0;padding:22px}.sheethead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.close{font-size:23px;background:#eef2f0;padding:4px 10px}.detailname{font-size:22px;font-weight:800;line-height:1.25}
+    .gallery{margin-top:18px}.mainimage{position:relative;background:#f2f4f3;border:1px solid var(--line);border-radius:16px;min-height:280px;display:flex;align-items:center;justify-content:center;overflow:hidden}.mainimage img{display:block;width:100%;height:min(52vh,500px);object-fit:contain}.imageempty{color:var(--muted);padding:70px 20px;text-align:center}.thumbs{display:flex;gap:8px;overflow:auto;padding:10px 1px 2px}.thumb{flex:0 0 72px;width:72px;height:60px;padding:3px;background:#fff;border:2px solid transparent;border-radius:9px}.thumb.active{border-color:var(--accent)}.thumb img{width:100%;height:100%;object-fit:cover;border-radius:6px}
+    .detailgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.7fr);gap:20px;margin-top:18px}.desc{line-height:1.55;color:#38433e;margin:0 0 18px;white-space:pre-line}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}.fact{padding:10px 12px;border-bottom:1px solid var(--line)}.fact:nth-child(odd){border-right:1px solid var(--line)}.fact b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.detailside{border:1px solid var(--line);border-radius:14px;padding:16px;height:max-content;background:#fafcfb}.detailprice{font-size:26px;font-weight:850;margin:0 0 7px}.detailmeta{color:var(--muted);font-size:13px;line-height:1.55;margin-bottom:12px}
+    footer{color:var(--muted);font-size:12px;padding:30px 16px;text-align:center}
+    @media(max-width:900px){.controls,.controls.second{grid-template-columns:repeat(2,minmax(0,1fr))}.detailgrid{grid-template-columns:1fr}.mainimage img{height:min(48vh,430px)}}
+    @media(max-width:600px){.controls,.controls.second{grid-template-columns:1fr}.updated{display:none}.wrap{padding:12px}.grid{grid-template-columns:1fr}.facts{grid-template-columns:1fr}.fact:nth-child(odd){border-right:0}.sheet{padding:16px}.mainimage{min-height:220px}.mainimage img{height:42vh}.actions{position:relative}.reset{padding:12px}}
   </style>
 </head>
 <body>
-<header><div class="wrap"><div class="top"><div class="logo">МЕТР<span>ПОЛА</span></div><div class="updated" id="updated"></div></div><div class="controls"><input id="search" type="search" placeholder="Поиск по названию, бренду, коллекции…"><select id="category"><option value="">Все категории</option></select><select id="stock"><option value="all">Все товары</option><option value="available">Только в наличии</option><option value="supply">Есть поставка</option></select></div></div></header>
-<main class="wrap"><div class="summary"><span id="found"></span><span class="pill" id="total"></span></div><div class="grid" id="grid"></div></main>
-<footer>Каталог формируется автоматически из файлов exchange.xml и qty.xml</footer>
-<div class="modal" id="modal" aria-hidden="true"><div class="sheet"><div class="sheethead"><div><div class="category" id="mcat"></div><div class="detailname" id="mname"></div></div><button class="close" id="close">×</button></div><div class="detailprice" id="mprice"></div><div id="mstock"></div><div class="desc" id="mdesc"></div><div class="facts" id="mfacts"></div></div></div>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="logo">МЕТР<span>ПОЛА</span></div>
+      <div class="updated" id="updated"></div>
+    </div>
+    <div class="controls">
+      <input id="search" type="search" placeholder="Поиск по названию, бренду, коллекции…">
+      <select id="category"><option value="">Все категории</option></select>
+      <select id="stock"><option value="all">Все товары</option><option value="available">Только в наличии</option><option value="supply">Есть поставка</option></select>
+      <select id="brand"><option value="">Все бренды</option></select>
+    </div>
+    <div class="controls second">
+      <select id="collection" disabled><option value="">Все коллекции</option></select>
+      <select id="mounting"><option value="">Любой способ монтажа</option></select>
+      <div></div>
+      <button class="reset" id="reset" type="button">Сбросить фильтры</button>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="summary"><span id="found"></span><span class="pill" id="total"></span></div>
+  <div class="grid" id="grid"></div>
+</main>
+<footer>Каталог формируется автоматически из exchange.xml и qty.xml</footer>
+
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="sheet">
+    <div class="sheethead">
+      <div><div class="category" id="mcat"></div><div class="detailname" id="mname"></div></div>
+      <button class="close" id="close" type="button" aria-label="Закрыть">×</button>
+    </div>
+    <div class="gallery" id="gallery"></div>
+    <div class="detailgrid">
+      <div>
+        <div class="desc" id="mdesc"></div>
+        <div class="facts" id="mfacts"></div>
+      </div>
+      <aside class="detailside">
+        <div class="detailprice" id="mprice"></div>
+        <div class="detailmeta" id="mmeta"></div>
+        <div id="mstock"></div>
+      </aside>
+    </div>
+  </div>
+</div>
+
 <script src="catalog-data.js"></script>
 <script>
-const DATA=window.CATALOG_DATA||{meta:{},products:[]}; const $=s=>document.querySelector(s); const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DATA=window.CATALOG_DATA||{meta:{},products:[]};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtPrice=v=>v!==''&&v!=null?new Intl.NumberFormat('ru-RU').format(Number(v))+' ₽':'Цена по запросу';
 const fmtQty=v=>v===null||v===''?'остаток не указан':new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(Number(v));
 const supplyText=p=>(p.supply||[]).map(s=>s.text||`${fmtQty(s.qty)} — ${s.date}`).join('; ');
-const cats=[...new Set(DATA.products.map(p=>p.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru')); cats.forEach(c=>$('#category').insertAdjacentHTML('beforeend',`<option>${esc(c)}</option>`));
-$('#total').textContent=`Всего: ${DATA.products.length}`; $('#updated').textContent='Данные собраны: '+new Date(DATA.meta.generated_at).toLocaleString('ru-RU');
-function stockHtml(p){if(p.qty===null||p.qty==='') return '<span class="unknown">Остаток не указан</span>'; const n=Number(p.qty); return `<span class="${n>0?'ok':'zero'}">${n>0?'В наличии: ':'Нет в наличии'}${n>0?fmtQty(n):''}</span>`}
-function card(p){const meta=[p.brand,p.collection].filter(Boolean).join(' · '); const sup=supplyText(p); return `<article class="card"><div class="category">${esc(p.category)}</div><div class="name">${esc(p.name)}</div><div class="meta">${esc(meta)}</div><div class="price">${fmtPrice(p.retail_price)}</div><div class="stock">${stockHtml(p)}</div>${sup?`<div class="supply">Поставка: ${esc(sup)}</div>`:''}<div class="actions"><button class="primary" data-open="${esc(p.id)}">Подробнее</button><button class="secondary" data-share="${esc(p.id)}">Поделиться</button></div></article>`}
-function render(){const q=$('#search').value.trim().toLowerCase(); const cat=$('#category').value; const sf=$('#stock').value; const list=DATA.products.filter(p=>{const hay=[p.name,p.category,p.brand,p.collection,p.id,Object.values(p.properties||{}).join(' ')].join(' ').toLowerCase(); if(q&&!hay.includes(q))return false;if(cat&&p.category!==cat)return false;if(sf==='available'&&!(Number(p.qty)>0))return false;if(sf==='supply'&&!(p.supply||[]).length)return false;return true}); $('#found').textContent=`Найдено: ${list.length}`; $('#grid').innerHTML=list.length?list.map(card).join(''):'<div class="empty">Ничего не найдено. Измените запрос или фильтры.</div>';}
-function openProduct(id){const p=DATA.products.find(x=>x.id===id);if(!p)return;$('#mcat').textContent=p.category;$('#mname').textContent=p.name;$('#mprice').textContent=fmtPrice(p.retail_price);const sup=supplyText(p);$('#mstock').innerHTML='<div class="stock">'+stockHtml(p)+'</div>'+(sup?`<div class="supply">Поставка: ${esc(sup)}</div>`:'');$('#mdesc').textContent=p.description||'Описание не заполнено.';const facts=Object.entries(p.properties||{}).filter(([,v])=>String(v).trim()).map(([k,v])=>`<div class="fact"><b>${esc(k)}</b>${esc(v)}</div>`);$('#mfacts').innerHTML=facts.join('');$('#modal').classList.add('open');document.body.style.overflow='hidden';}
-function closeModal(){$('#modal').classList.remove('open');document.body.style.overflow='';}
-document.addEventListener('input',e=>{if(['search','category','stock'].includes(e.target.id))render()});document.addEventListener('change',e=>{if(['category','stock'].includes(e.target.id))render()});document.addEventListener('click',async e=>{const o=e.target.closest('[data-open]');if(o)openProduct(o.dataset.open);const s=e.target.closest('[data-share]');if(s){const p=DATA.products.find(x=>x.id===s.dataset.share);const text=`${p.name}\n${fmtPrice(p.retail_price)}\n${p.qty!=null?'В наличии: '+fmtQty(p.qty):''}`;try{if(navigator.share)await navigator.share({title:p.name,text});else{await navigator.clipboard.writeText(text);alert('Информация скопирована');}}catch(_){}}if(e.target===$('#modal')||e.target===$('#close'))closeModal();});document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});render();
+const sortRu=(a,b)=>a.localeCompare(b,'ru',{sensitivity:'base'});
+const uniqueSorted=values=>[...new Set(values.filter(v=>String(v||'').trim()))].sort(sortRu);
+const imageUrl=name=>'images/'+encodeURIComponent(String(name||''));
+
+function fillSelect(select,values,allLabel){
+  const old=select.value;
+  select.innerHTML=`<option value="">${esc(allLabel)}</option>`+values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  select.value=values.includes(old)?old:'';
+}
+
+function baseProductsForOptions(exclude){
+  const category=$('#category').value;
+  const brand=$('#brand').value;
+  const collection=$('#collection').value;
+  return DATA.products.filter(p=>{
+    if(exclude!=='category'&&category&&p.category!==category)return false;
+    if(exclude!=='brand'&&brand&&p.brand!==brand)return false;
+    if(exclude!=='collection'&&collection&&p.collection!==collection)return false;
+    return true;
+  });
+}
+
+function refreshDependentFilters(){
+  const brandValues=uniqueSorted(baseProductsForOptions('brand').map(p=>p.brand));
+  fillSelect($('#brand'),brandValues,'Все бренды');
+  const brand=$('#brand').value;
+
+  if(!brand){
+    $('#collection').innerHTML='<option value="">Сначала выберите бренд</option>';
+    $('#collection').disabled=true;
+    $('#mounting').innerHTML='<option value="">Сначала выберите бренд</option>';
+    $('#mounting').disabled=true;
+    return;
+  }
+
+  const collectionValues=uniqueSorted(baseProductsForOptions('collection').map(p=>p.collection));
+  fillSelect($('#collection'),collectionValues,'Все коллекции');
+  $('#collection').disabled=false;
+
+  const mountingValues=uniqueSorted(baseProductsForOptions('mounting').map(p=>p.mounting).filter(v=>['Замковый','Клеевой'].includes(v)));
+  fillSelect($('#mounting'),mountingValues,'Любой способ монтажа');
+  $('#mounting').disabled=false;
+}
+
+const categories=uniqueSorted(DATA.products.map(p=>p.category));
+fillSelect($('#category'),categories,'Все категории');
+refreshDependentFilters();
+$('#total').textContent=`Всего: ${DATA.products.length}`;
+const stockDate=DATA.meta.stock_updated_at||DATA.meta.generated_at;
+const catalogDate=DATA.meta.catalog_updated_at;
+const dateText=value=>value?new Date(value).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'}):'не указано';
+$('#updated').innerHTML=`Остатки: ${esc(dateText(stockDate))} МСК<br>Каталог: ${esc(dateText(catalogDate))} МСК`;
+
+function stockHtml(p){
+  if(p.qty===null||p.qty==='')return '<span class="unknown">Остаток не указан</span>';
+  const n=Number(p.qty);
+  return `<span class="${n>0?'ok':'zero'}">${n>0?'В наличии: ':'Нет в наличии'}${n>0?fmtQty(n):''}</span>`;
+}
+
+function card(p){
+  const meta=[p.brand,p.collection].filter(Boolean).join(' · ');
+  const sup=supplyText(p);
+  return `<article class="card">
+    <div class="category">${esc(p.category)}</div>
+    <div class="name">${esc(p.name)}</div>
+    <div class="meta">${esc(meta)}${p.mounting?`<br><span class="mount">${esc(p.mounting)}</span>`:''}</div>
+    <div class="price">${fmtPrice(p.retail_price)}</div>
+    <div class="stock">${stockHtml(p)}</div>
+    ${sup?`<div class="supply">Поставка: ${esc(sup)}</div>`:''}
+    <div class="actions"><button class="primary" data-open="${esc(p.id)}">Подробнее</button><button class="secondary" data-share="${esc(p.id)}">Поделиться</button></div>
+  </article>`;
+}
+
+function currentList(){
+  const q=$('#search').value.trim().toLowerCase();
+  const category=$('#category').value;
+  const stock=$('#stock').value;
+  const brand=$('#brand').value;
+  const collection=$('#collection').value;
+  const mounting=$('#mounting').value;
+  return DATA.products.filter(p=>{
+    const hay=[p.name,p.category,p.brand,p.collection,p.mounting,p.id,Object.values(p.properties||{}).join(' ')].join(' ').toLowerCase();
+    if(q&&!hay.includes(q))return false;
+    if(category&&p.category!==category)return false;
+    if(brand&&p.brand!==brand)return false;
+    if(collection&&p.collection!==collection)return false;
+    if(mounting&&p.mounting!==mounting)return false;
+    if(stock==='available'&&!(Number(p.qty)>0))return false;
+    if(stock==='supply'&&!(p.supply||[]).length)return false;
+    return true;
+  });
+}
+
+function render(){
+  const list=currentList();
+  $('#found').textContent=`Найдено: ${list.length}`;
+  $('#grid').innerHTML=list.length?list.map(card).join(''):'<div class="empty">Ничего не найдено. Измените запрос или фильтры.</div>';
+}
+
+function renderGallery(p){
+  const images=(p.images||[]).filter(Boolean);
+  if(!images.length){
+    $('#gallery').innerHTML='<div class="mainimage"><div class="imageempty">Изображение не добавлено</div></div>';
+    return;
+  }
+  $('#gallery').innerHTML=`
+    <div class="mainimage"><img id="mainProductImage" src="${esc(imageUrl(images[0]))}" alt="${esc(p.name)}" loading="eager"></div>
+    ${images.length>1?`<div class="thumbs">${images.map((name,i)=>`<button class="thumb ${i===0?'active':''}" data-image="${esc(name)}" type="button"><img src="${esc(imageUrl(name))}" alt="" loading="lazy"></button>`).join('')}</div>`:''}`;
+  const main=$('#mainProductImage');
+  if(main)main.addEventListener('error',()=>{main.closest('.mainimage').innerHTML='<div class="imageempty">Изображение пока не загружено</div>';},{once:true});
+}
+
+function openProduct(id){
+  const p=DATA.products.find(x=>x.id===id);if(!p)return;
+  $('#mcat').textContent=p.category;
+  $('#mname').textContent=p.name;
+  $('#mprice').textContent=fmtPrice(p.retail_price);
+  $('#mmeta').innerHTML=[p.brand&&`Бренд: <b>${esc(p.brand)}</b>`,p.collection&&`Коллекция: <b>${esc(p.collection)}</b>`,p.mounting&&`Монтаж: <b>${esc(p.mounting)}</b>`].filter(Boolean).join('<br>');
+  const sup=supplyText(p);
+  $('#mstock').innerHTML='<div class="stock">'+stockHtml(p)+'</div>'+(sup?`<div class="supply">Поставка: ${esc(sup)}</div>`:'');
+  $('#mdesc').textContent=p.description||'Описание не заполнено.';
+  const facts=Object.entries(p.properties||{}).filter(([,v])=>String(v).trim()).map(([k,v])=>`<div class="fact"><b>${esc(k)}</b>${esc(v)}</div>`);
+  $('#mfacts').innerHTML=facts.join('');
+  renderGallery(p);
+  $('#modal').classList.add('open');
+  $('#modal').setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+}
+
+function closeModal(){
+  $('#modal').classList.remove('open');
+  $('#modal').setAttribute('aria-hidden','true');
+  document.body.style.overflow='';
+}
+
+function resetFilters(){
+  ['search','category','brand','collection','mounting'].forEach(id=>$('#'+id).value='');
+  $('#stock').value='all';
+  refreshDependentFilters();
+  render();
+}
+
+$('#search').addEventListener('input',render);
+['category','brand','collection','mounting','stock'].forEach(id=>$('#'+id).addEventListener('change',()=>{
+  if(['category','brand','collection'].includes(id))refreshDependentFilters();
+  render();
+}));
+$('#reset').addEventListener('click',resetFilters);
+
+document.addEventListener('click',async e=>{
+  const open=e.target.closest('[data-open]');if(open)openProduct(open.dataset.open);
+  const thumb=e.target.closest('[data-image]');
+  if(thumb){
+    const main=$('#mainProductImage');
+    if(main){main.src=imageUrl(thumb.dataset.image);document.querySelectorAll('.thumb').forEach(x=>x.classList.remove('active'));thumb.classList.add('active');}
+  }
+  const share=e.target.closest('[data-share]');
+  if(share){
+    const p=DATA.products.find(x=>x.id===share.dataset.share);
+    const text=`${p.name}\n${fmtPrice(p.retail_price)}\n${p.qty!=null?'В наличии: '+fmtQty(p.qty):''}`;
+    try{if(navigator.share)await navigator.share({title:p.name,text});else{await navigator.clipboard.writeText(text);alert('Информация скопирована');}}catch(_){ }
+  }
+  if(e.target===$('#modal')||e.target===$('#close'))closeModal();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+render();
 </script>
-</body></html>
+</body>
+</html>
