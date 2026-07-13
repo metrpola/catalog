@@ -243,8 +243,12 @@ def read_exchange_products(
         )
 
         path_names = group_paths.get(id(product), [])
-        fallback_category = path_names[0] if path_names else "Без категории"
-        category = properties.get("Вид") or fallback_category
+        # Category comes from the actual XML hierarchy. In this export the
+        # group directly containing the product is the broad catalogue section
+        # (for example, "Пробковые полы"), while the property "Вид" may split
+        # one section into variants such as glued/locking. Mounting remains a
+        # separate filter and must not create extra categories.
+        category = path_names[-1] if path_names else "Без категории"
         brand = properties.get("Торговая марка", "")
         collection = properties.get("Коллекция", "")
         mounting = properties.get("Тип монтажа", "")
