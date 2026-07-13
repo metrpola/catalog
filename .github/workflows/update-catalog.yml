@@ -2,32 +2,66 @@ name: Update catalog from FTP
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Что обновить
+        required: true
+        default: catalog
+        type: choice
+        options:
+          - catalog
+          - stock
   schedule:
-    # Every hour at minute 17 (UTC). Exact start can be delayed by GitHub load.
-    - cron: "17 * * * *"
+    # 06:30 MSK: positions, prices and new images once a day.
+    - cron: "30 3 * * *"
+    # 07:00-20:45 MSK: stock every 15 minutes.
+    - cron: "*/15 4-17 * * *"
+    # 21:00 MSK: final stock update of the day.
+    - cron: "0 18 * * *"
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 concurrency:
-  group: github-pages
+  group: metrpola-catalog-update
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      update_mode: ${{ steps.mode.outputs.update_mode }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - name: Download XML and build catalog data
+      - name: Choose update mode
+        id: mode
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          REQUESTED_MODE: ${{ inputs.mode }}
+        run: |
+          mode="stock"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            mode="${REQUESTED_MODE:-catalog}"
+          elif [ "$EVENT_SCHEDULE" = "30 3 * * *" ]; then
+            mode="catalog"
+          fi
+          echo "update_mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "Selected mode: $mode"
+
+      - name: Download data and build catalog
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
@@ -35,12 +69,35 @@ jobs:
           FTP_PORT: ${{ secrets.FTP_PORT }}
           FTP_EXCHANGE_PATH: ${{ secrets.FTP_EXCHANGE_PATH }}
           FTP_QTY_PATH: ${{ secrets.FTP_QTY_PATH }}
+          FTP_IMAGES_DIR: ${{ secrets.FTP_IMAGES_DIR }}
+          UPDATE_MODE: ${{ steps.mode.outputs.update_mode }}
+          CACHE_EXCHANGE_FILE: data/exchange.xml
+          CATALOG_META_FILE: data/catalog-meta.json
+          IMAGES_DIR: images
           OUTPUT_FILE: _site/catalog-data.js
+          SYNC_IMAGES: "1"
+          PRUNE_IMAGES: "1"
         run: |
           mkdir -p _site
           cp index.html _site/index.html
-          touch _site/.nojekyll
           python update_catalog.py
+          if [ -d images ]; then
+            cp -R images _site/images
+          fi
+
+      - name: Save daily catalog cache and images
+        if: steps.mode.outputs.update_mode == 'catalog'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/exchange.xml data/catalog-meta.json images
+          if git diff --cached --quiet; then
+            echo "No catalog or image changes to commit"
+          else
+            git commit -m "Автообновление каталога и изображений"
+            git push
+          fi
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -49,7 +106,6 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: _site
-          include-hidden-files: true
 
   deploy:
     environment:
