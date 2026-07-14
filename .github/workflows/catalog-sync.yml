@@ -1,0 +1,164 @@
+name: Update catalog from FTP
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "index.html"
+      - "favicon.ico"
+      - "favicon-32.png"
+      - "favicon-192.png"
+      - "favicon-512.png"
+      - "apple-touch-icon.png"
+      - "update_catalog.py"
+      - ".github/workflows/update-catalog.yml"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Что обновить
+        required: true
+        default: stock
+        type: choice
+        options:
+          - stock
+          - catalog
+  schedule:
+    # GitHub cron в UTC. Москва круглый год UTC+3.
+    # Полный каталог: ежедневно в 06:30 МСК = 03:30 UTC.
+    - cron: "30 3 * * *"
+    # Остатки: каждые 15 минут с 07:02 до 20:47 МСК = 04:02-17:47 UTC.
+    - cron: "2,17,32,47 4-17 * * *"
+    # Последнее обновление остатков: 21:02 МСК = 18:02 UTC.
+    - cron: "2 18 * * *"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: metrpola-catalog-update
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Choose effective update mode
+        id: mode
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          REQUESTED_MODE: ${{ inputs.mode }}
+        run: |
+          mode="stock"
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            mode="${REQUESTED_MODE:-stock}"
+          elif [ "$EVENT_NAME" = "schedule" ] && [ "$EVENT_SCHEDULE" = "30 3 * * *" ]; then
+            mode="catalog"
+          fi
+
+          # Важная защита первого запуска: если кэш каталога отсутствует,
+          # режим stock автоматически становится catalog и затем кэш сохраняется.
+          if [ "$mode" = "stock" ]; then
+            if [ ! -s data/exchange.xml ] || [ ! -s data/catalog-meta.json ]; then
+              echo "Catalog cache is missing; switching stock -> catalog"
+              mode="catalog"
+            fi
+          fi
+
+          echo "update_mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "Selected mode: $mode"
+          echo "### Режим обновления: $mode" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Событие: $EVENT_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Расписание: ${EVENT_SCHEDULE:-ручной запуск}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Download data and build catalog
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+          FTP_EXCHANGE_PATH: ${{ secrets.FTP_EXCHANGE_PATH }}
+          FTP_QTY_PATH: ${{ secrets.FTP_QTY_PATH }}
+          FTP_IMAGES_DIR: ${{ secrets.FTP_IMAGES_DIR }}
+          UPDATE_MODE: ${{ steps.mode.outputs.update_mode }}
+          CACHE_EXCHANGE_FILE: data/exchange.xml
+          CATALOG_META_FILE: data/catalog-meta.json
+          IMAGES_DIR: images
+          OUTPUT_FILE: _site/catalog-data.js
+          SYNC_IMAGES: "1"
+          PRUNE_IMAGES: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp index.html _site/index.html
+
+          for asset in favicon.ico favicon-32.png favicon-192.png favicon-512.png apple-touch-icon.png; do
+            if [ -f "$asset" ]; then
+              cp "$asset" _site/
+            else
+              echo "Warning: $asset is missing from repository root"
+            fi
+          done
+
+          python update_catalog.py
+
+          if [ -d images ]; then
+            cp -R images _site/images
+          fi
+
+      - name: Save catalog cache and images when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ -d data ]; then
+            git add -A -- data
+          fi
+          if [ -d images ]; then
+            git add -A -- images
+          fi
+
+          if git diff --cached --quiet; then
+            echo "No catalog cache or image changes to commit"
+          else
+            git commit -m "Автообновление каталога и изображений"
+            git push origin HEAD:main
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
