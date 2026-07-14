@@ -1,6 +1,18 @@
 name: Update catalog from FTP
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "index.html"
+      - "favicon.ico"
+      - "favicon-32.png"
+      - "favicon-192.png"
+      - "favicon-512.png"
+      - "apple-touch-icon.png"
+      - "update_catalog.py"
+      - ".github/workflows/update-catalog.yml"
   workflow_dispatch:
     inputs:
       mode:
@@ -80,6 +92,13 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html _site/index.html
+          for asset in favicon.ico favicon-32.png favicon-192.png favicon-512.png apple-touch-icon.png; do
+            if [ -f "$asset" ]; then
+              cp "$asset" _site/
+            else
+              echo "Warning: $asset is missing from repository root"
+            fi
+          done
           python update_catalog.py
           if [ -d images ]; then
             cp -R images _site/images
