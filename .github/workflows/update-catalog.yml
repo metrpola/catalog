@@ -24,16 +24,13 @@ on:
           - stock
           - catalog
   schedule:
-    # Полный каталог: ежедневно в 06:30 по Москве.
-    - cron: "30 6 * * *"
-      timezone: "Europe/Moscow"
-    # Остатки: каждые 15 минут с 07:02 до 20:47 по Москве.
-    # Сдвиг на 2 минуты снижает риск задержек в начале часа.
-    - cron: "2,17,32,47 7-20 * * *"
-      timezone: "Europe/Moscow"
-    # Последнее обновление остатков: 21:02 по Москве.
-    - cron: "2 21 * * *"
-      timezone: "Europe/Moscow"
+    # GitHub cron в UTC. Москва круглый год UTC+3.
+    # Полный каталог: ежедневно в 06:30 МСК = 03:30 UTC.
+    - cron: "30 3 * * *"
+    # Остатки: каждые 15 минут с 07:02 до 20:47 МСК = 04:02-17:47 UTC.
+    - cron: "2,17,32,47 4-17 * * *"
+    # Последнее обновление остатков: 21:02 МСК = 18:02 UTC.
+    - cron: "2 18 * * *"
 
 permissions:
   contents: write
@@ -71,7 +68,7 @@ jobs:
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             mode="${REQUESTED_MODE:-stock}"
-          elif [ "$EVENT_NAME" = "schedule" ] && [ "$EVENT_SCHEDULE" = "30 6 * * *" ]; then
+          elif [ "$EVENT_NAME" = "schedule" ] && [ "$EVENT_SCHEDULE" = "30 3 * * *" ]; then
             mode="catalog"
           fi
 
@@ -87,6 +84,8 @@ jobs:
           echo "update_mode=$mode" >> "$GITHUB_OUTPUT"
           echo "Selected mode: $mode"
           echo "### Режим обновления: $mode" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Событие: $EVENT_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Расписание: ${EVENT_SCHEDULE:-ручной запуск}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download data and build catalog
         env:
