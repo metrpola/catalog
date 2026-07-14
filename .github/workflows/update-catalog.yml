@@ -18,18 +18,22 @@ on:
       mode:
         description: Что обновить
         required: true
-        default: catalog
+        default: stock
         type: choice
         options:
-          - catalog
           - stock
+          - catalog
   schedule:
-    # 06:30 MSK: positions, prices and new images once a day.
-    - cron: "30 3 * * *"
-    # 07:00-20:45 MSK: stock every 15 minutes.
-    - cron: "*/15 4-17 * * *"
-    # 21:00 MSK: final stock update of the day.
-    - cron: "0 18 * * *"
+    # Полный каталог: ежедневно в 06:30 по Москве.
+    - cron: "30 6 * * *"
+      timezone: "Europe/Moscow"
+    # Остатки: каждые 15 минут с 07:02 до 20:47 по Москве.
+    # Сдвиг на 2 минуты снижает риск задержек в начале часа.
+    - cron: "2,17,32,47 7-20 * * *"
+      timezone: "Europe/Moscow"
+    # Последнее обновление остатков: 21:02 по Москве.
+    - cron: "2 21 * * *"
+      timezone: "Europe/Moscow"
 
 permissions:
   contents: write
@@ -43,8 +47,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      update_mode: ${{ steps.mode.outputs.update_mode }}
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -56,7 +59,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Choose update mode
+      - name: Choose effective update mode
         id: mode
         shell: bash
         env:
@@ -65,13 +68,25 @@ jobs:
           REQUESTED_MODE: ${{ inputs.mode }}
         run: |
           mode="stock"
+
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            mode="${REQUESTED_MODE:-catalog}"
-          elif [ "$EVENT_SCHEDULE" = "30 3 * * *" ]; then
+            mode="${REQUESTED_MODE:-stock}"
+          elif [ "$EVENT_NAME" = "schedule" ] && [ "$EVENT_SCHEDULE" = "30 6 * * *" ]; then
             mode="catalog"
           fi
+
+          # Важная защита первого запуска: если кэш каталога отсутствует,
+          # режим stock автоматически становится catalog и затем кэш сохраняется.
+          if [ "$mode" = "stock" ]; then
+            if [ ! -s data/exchange.xml ] || [ ! -s data/catalog-meta.json ]; then
+              echo "Catalog cache is missing; switching stock -> catalog"
+              mode="catalog"
+            fi
+          fi
+
           echo "update_mode=$mode" >> "$GITHUB_OUTPUT"
           echo "Selected mode: $mode"
+          echo "### Режим обновления: $mode" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download data and build catalog
         env:
@@ -90,8 +105,10 @@ jobs:
           SYNC_IMAGES: "1"
           PRUNE_IMAGES: "1"
         run: |
+          set -euo pipefail
           mkdir -p _site
           cp index.html _site/index.html
+
           for asset in favicon.ico favicon-32.png favicon-192.png favicon-512.png apple-touch-icon.png; do
             if [ -f "$asset" ]; then
               cp "$asset" _site/
@@ -99,23 +116,32 @@ jobs:
               echo "Warning: $asset is missing from repository root"
             fi
           done
+
           python update_catalog.py
+
           if [ -d images ]; then
             cp -R images _site/images
           fi
 
-      - name: Save daily catalog cache and images
-        if: steps.mode.outputs.update_mode == 'catalog'
+      - name: Save catalog cache and images when changed
         shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/exchange.xml data/catalog-meta.json images
+
+          if [ -d data ]; then
+            git add -A -- data
+          fi
+          if [ -d images ]; then
+            git add -A -- images
+          fi
+
           if git diff --cached --quiet; then
-            echo "No catalog or image changes to commit"
+            echo "No catalog cache or image changes to commit"
           else
             git commit -m "Автообновление каталога и изображений"
-            git push
+            git push origin HEAD:main
           fi
 
       - name: Configure GitHub Pages
@@ -131,6 +157,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - name: Deploy to GitHub Pages
