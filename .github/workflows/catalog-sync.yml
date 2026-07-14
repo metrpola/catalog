@@ -12,7 +12,7 @@ on:
       - "favicon-512.png"
       - "apple-touch-icon.png"
       - "update_catalog.py"
-      - ".github/workflows/update-catalog.yml"
+      - ".github/workflows/catalog-sync.yml"
   workflow_dispatch:
     inputs:
       mode:
