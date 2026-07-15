@@ -23,14 +23,12 @@ on:
         options:
           - stock
           - catalog
-  schedule:
-    # GitHub cron в UTC. Москва круглый год UTC+3.
-    # Полный каталог: ежедневно в 06:30 МСК = 03:30 UTC.
-    - cron: "30 3 * * *"
-    # Остатки: каждые 15 минут с 07:02 до 20:47 МСК = 04:02-17:47 UTC.
-    - cron: "2,17,32,47 4-17 * * *"
-    # Последнее обновление остатков: 21:02 МСК = 18:02 UTC.
-    - cron: "2 18 * * *"
+          - images
+      product_ids:
+        description: GIUD товаров для загрузки изображений, через запятую
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -61,19 +59,15 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_SCHEDULE: ${{ github.event.schedule }}
           REQUESTED_MODE: ${{ inputs.mode }}
+          REQUESTED_PRODUCT_IDS: ${{ inputs.product_ids }}
         run: |
           mode="stock"
 
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             mode="${REQUESTED_MODE:-stock}"
-          elif [ "$EVENT_NAME" = "schedule" ] && [ "$EVENT_SCHEDULE" = "30 3 * * *" ]; then
-            mode="catalog"
           fi
 
-          # Важная защита первого запуска: если кэш каталога отсутствует,
-          # режим stock автоматически становится catalog и затем кэш сохраняется.
           if [ "$mode" = "stock" ]; then
             if [ ! -s data/exchange.xml ] || [ ! -s data/catalog-meta.json ]; then
               echo "Catalog cache is missing; switching stock -> catalog"
@@ -85,7 +79,9 @@ jobs:
           echo "Selected mode: $mode"
           echo "### Режим обновления: $mode" >> "$GITHUB_STEP_SUMMARY"
           echo "- Событие: $EVENT_NAME" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Расписание: ${EVENT_SCHEDULE:-ручной запуск}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$REQUESTED_PRODUCT_IDS" ]; then
+            echo "- GIUD изображений: $REQUESTED_PRODUCT_IDS" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Download data and build catalog
         env:
@@ -99,10 +95,12 @@ jobs:
           UPDATE_MODE: ${{ steps.mode.outputs.update_mode }}
           CACHE_EXCHANGE_FILE: data/exchange.xml
           CATALOG_META_FILE: data/catalog-meta.json
+          IMAGE_CACHE_FILE: data/image-cache.json
+          IMAGE_PRODUCT_IDS: ${{ inputs.product_ids }}
           IMAGES_DIR: images
           OUTPUT_FILE: _site/catalog-data.js
-          SYNC_IMAGES: "1"
-          PRUNE_IMAGES: "1"
+          SYNC_IMAGES: ${{ (steps.mode.outputs.update_mode == 'images' || steps.mode.outputs.update_mode == 'catalog') && '1' || '0' }}
+          PRUNE_IMAGES: "0"
         run: |
           set -euo pipefail
           mkdir -p _site
