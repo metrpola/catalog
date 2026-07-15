@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Build and update the METRPOLA GitHub Pages catalog.
 
-Two modes are supported:
-- catalog: download exchange.xml and qty.xml, refresh the product cache,
-  download only missing product images, then build catalog-data.js.
+Three modes are supported:
+- catalog: download fresh exchange.xml and qty.xml, rebuild the product list
+  strictly from the current exchange.xml (products removed from XML disappear),
+  preserve cached image references, and optionally download only missing images.
 - stock: download only qty.xml and rebuild the site from cached exchange.xml.
+- images: download exchange.xml and qty.xml, then download only missing images
+  for selected product GIUD values, or for every current product when the filter is empty.
 
 Required environment variables:
 FTP_HOST, FTP_USER, FTP_PASSWORD, FTP_EXCHANGE_PATH, FTP_QTY_PATH.
@@ -12,12 +15,15 @@ Optional:
 FTP_PORT=21
 FTP_IMAGES_DIR=remote image directory (defaults to exchange.xml directory;
                multiple directories may be separated with semicolons)
-UPDATE_MODE=catalog|stock
+UPDATE_MODE=catalog|stock|images
 CACHE_EXCHANGE_FILE=data/exchange.xml
 CATALOG_META_FILE=data/catalog-meta.json
+IMAGE_CACHE_FILE=data/image-cache.json
+IMAGE_PRODUCT_IDS=semicolon/comma separated product GIUD values
 IMAGES_DIR=images
 OUTPUT_FILE=_site/catalog-data.js
-PRUNE_IMAGES=1
+SYNC_IMAGES=0
+PRUNE_IMAGES=0
 """
 
 from __future__ import annotations
@@ -172,6 +178,73 @@ def safe_image_name(value: str | None) -> str:
     return name
 
 
+def read_image_cache(path: Path) -> dict[str, list[str]]:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+    if not isinstance(raw, dict):
+        return {}
+
+    result: dict[str, list[str]] = {}
+    for product_id, values in raw.items():
+        if not isinstance(product_id, str) or not isinstance(values, list):
+            continue
+        cleaned: list[str] = []
+        for value in values:
+            image_name = safe_image_name(str(value))
+            if image_name and image_name not in cleaned:
+                cleaned.append(image_name)
+        if cleaned:
+            result[product_id] = cleaned
+    return result
+
+
+def write_image_cache(path: Path, cache: dict[str, list[str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    normalized = {
+        product_id: images
+        for product_id, images in sorted(cache.items())
+        if product_id and images
+    }
+    path.write_text(
+        json.dumps(normalized, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def image_map_from_exchange(path: Path) -> dict[str, list[str]]:
+    root = ET.parse(path).getroot()
+    result: dict[str, list[str]] = {}
+    for product in root.iter("Товар"):
+        product_id = (product.attrib.get("GIUD") or "").strip()
+        if not product_id:
+            continue
+        _, images = property_map(product)
+        if images:
+            result[product_id] = images
+    return result
+
+
+def merge_image_cache(
+    cache: dict[str, list[str]], fresh: dict[str, list[str]]
+) -> dict[str, list[str]]:
+    merged = dict(cache)
+    # New non-empty image lists replace the old list for that product.
+    # Products absent from the temporary FTP export keep their cached list.
+    for product_id, images in fresh.items():
+        if images:
+            merged[product_id] = images
+    return merged
+
+
+def parse_product_id_filter(value: str | None) -> set[str]:
+    if not value:
+        return set()
+    return {part.strip() for part in re.split(r"[;,\s]+", value) if part.strip()}
+
+
 def property_map(product: ET.Element) -> tuple[dict[str, str], list[str]]:
     properties: dict[str, str] = {}
     images: list[str] = []
@@ -214,7 +287,9 @@ def group_path_for_products(root: ET.Element) -> dict[int, list[str]]:
 
 
 def read_exchange_products(
-    path: Path, qty_data: dict[str, dict[str, Any]]
+    path: Path,
+    qty_data: dict[str, dict[str, Any]],
+    image_cache: dict[str, list[str]] | None = None,
 ) -> tuple[list[dict[str, Any]], set[str]]:
     root = ET.parse(path).getroot()
     group_paths = group_path_for_products(root)
@@ -226,7 +301,11 @@ def read_exchange_products(
         if not product_id:
             continue
 
-        properties, images = property_map(product)
+        properties, xml_images = property_map(product)
+        cached_images = (image_cache or {}).get(product_id, [])
+        # If a temporary export no longer contains image names, keep the last
+        # known references so the site can continue to use the GitHub cache.
+        images = xml_images if xml_images else list(cached_images)
         all_images.update(images)
         description_node = product.find("Описание")
         description = ""
@@ -272,6 +351,9 @@ def read_exchange_products(
             }
         )
 
+    # The list is built only from products present in the current exchange.xml.
+    # Therefore a product removed from exchange.xml is removed from catalog-data.js
+    # on the next catalog/images run. Image files remain cached intentionally.
     products.sort(
         key=lambda item: (
             str(item["category"]).casefold(),
@@ -312,9 +394,28 @@ def sync_images(
     exchange_remote: str,
     images_dir: Path,
     prune: bool,
+    image_cache: dict[str, list[str]],
+    product_ids: set[str] | None = None,
 ) -> dict[str, int]:
-    products, required_images = read_exchange_products(exchange_path, {})
-    del products
+    products, _ = read_exchange_products(exchange_path, {}, image_cache)
+    selected_ids = product_ids or set()
+    selected_products = (
+        [product for product in products if str(product.get("id")) in selected_ids]
+        if selected_ids
+        else products
+    )
+    required_images = {
+        image
+        for product in selected_products
+        for image in product.get("images", [])
+        if image
+    }
+    if selected_ids:
+        found_ids = {str(product.get("id")) for product in selected_products}
+        missing_ids = sorted(selected_ids - found_ids)
+        if missing_ids:
+            print("ПРЕДУПРЕЖДЕНИЕ: товары не найдены по GIUD: " + ", ".join(missing_ids))
+        print("Фильтр изображений по GIUD: " + ", ".join(sorted(selected_ids)))
     images_dir.mkdir(parents=True, exist_ok=True)
 
     existing = {
@@ -411,10 +512,11 @@ def build(
     qty_path: Path,
     output_path: Path,
     catalog_meta_path: Path,
+    image_cache: dict[str, list[str]],
     update_mode: str,
 ) -> None:
     qty_data = load_qty(qty_path)
-    products, all_images = read_exchange_products(exchange_path, qty_data)
+    products, all_images = read_exchange_products(exchange_path, qty_data, image_cache)
     if not products:
         raise RuntimeError("В exchange.xml не найдено ни одного товара")
 
@@ -454,8 +556,8 @@ def main() -> int:
         raise RuntimeError("Не заданы параметры: " + ", ".join(missing))
 
     mode = os.environ.get("UPDATE_MODE", "stock").strip().lower()
-    if mode not in {"catalog", "stock"}:
-        raise RuntimeError("UPDATE_MODE должен быть catalog или stock")
+    if mode not in {"catalog", "stock", "images"}:
+        raise RuntimeError("UPDATE_MODE должен быть catalog, stock или images")
 
     host = required_env("FTP_HOST")
     user = required_env("FTP_USER")
@@ -465,8 +567,11 @@ def main() -> int:
     qty_remote = required_env("FTP_QTY_PATH")
     exchange_cache = Path(os.environ.get("CACHE_EXCHANGE_FILE", "data/exchange.xml"))
     catalog_meta = Path(os.environ.get("CATALOG_META_FILE", "data/catalog-meta.json"))
+    image_cache_path = Path(os.environ.get("IMAGE_CACHE_FILE", "data/image-cache.json"))
+    image_product_ids = parse_product_id_filter(os.environ.get("IMAGE_PRODUCT_IDS"))
     images_dir = Path(os.environ.get("IMAGES_DIR", "images"))
     output = Path(os.environ.get("OUTPUT_FILE", "_site/catalog-data.js"))
+    image_cache = read_image_cache(image_cache_path)
 
     with tempfile.TemporaryDirectory(prefix="metrpola-") as temp_dir:
         qty_local = Path(temp_dir) / "qty.xml"
@@ -474,7 +579,7 @@ def main() -> int:
         print(f"Режим обновления: {mode}")
         print(f"Подключение к FTP {host}:{port} ...")
         with connect_ftp(host, port, user, password) as ftp:
-            if mode == "catalog" or not exchange_cache.exists():
+            if mode in {"catalog", "images"} or not exchange_cache.exists():
                 if mode == "stock" and not exchange_cache.exists():
                     print("Кэш exchange.xml отсутствует: выполняется первоначальная загрузка каталога")
                     mode = "catalog"
@@ -484,22 +589,30 @@ def main() -> int:
                     f"({exchange_cache.stat().st_size} байт)"
                 )
 
-                products_without_qty, all_images = read_exchange_products(exchange_cache, {})
+                fresh_image_map = image_map_from_exchange(exchange_cache)
+                image_cache = merge_image_cache(image_cache, fresh_image_map)
+                write_image_cache(image_cache_path, image_cache)
+
+                products_without_qty, all_images = read_exchange_products(
+                    exchange_cache, {}, image_cache
+                )
                 write_catalog_meta(catalog_meta, len(products_without_qty), len(all_images))
 
-                if env_flag("SYNC_IMAGES", default=True):
+                if env_flag("SYNC_IMAGES", default=False):
                     sync_images(
                         ftp,
                         exchange_cache,
                         exchange_remote,
                         images_dir,
-                        prune=env_flag("PRUNE_IMAGES", default=True),
+                        prune=env_flag("PRUNE_IMAGES", default=False),
+                        image_cache=image_cache,
+                        product_ids=image_product_ids,
                     )
 
             download_atomic(ftp, qty_remote, qty_local)
             print(f"Остатки скачаны: {qty_local.stat().st_size} байт")
 
-        build(exchange_cache, qty_local, output, catalog_meta, mode)
+        build(exchange_cache, qty_local, output, catalog_meta, image_cache, mode)
     return 0
 
 
