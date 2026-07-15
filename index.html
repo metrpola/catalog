@@ -90,7 +90,10 @@
     .fact:nth-child(odd){border-right:1px solid var(--line)}
     .fact b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
     .detailside{border:1px solid var(--line);border-radius:14px;padding:16px;height:max-content;background:#fafafa}
+    .pricecaption{font-size:12px;color:var(--muted);font-weight:750;margin-bottom:3px}
     .detailprice{font-size:26px;font-weight:900;margin:0 0 7px;color:var(--graphite-dark)}
+    .detailwholesale{display:none;margin:0 0 14px;padding:10px 12px;border-radius:10px;background:var(--gold-soft);border:1px solid #f1d77a;color:#6b4d00;font-size:14px;line-height:1.35}
+    .detailwholesale.show{display:block}
     .detailmeta{color:var(--muted);font-size:13px;line-height:1.55;margin-bottom:12px}
     footer{color:var(--muted);font-size:12px;padding:30px 16px;text-align:center}
     @media(max-width:900px){.controls,.controls.second{grid-template-columns:repeat(2,minmax(0,1fr))}.detailgrid{grid-template-columns:1fr}.mainimage img{height:min(48vh,430px)}}
@@ -145,7 +148,9 @@
         <div class="facts" id="mfacts"></div>
       </div>
       <aside class="detailside">
+        <div class="pricecaption">Розничная цена</div>
         <div class="detailprice" id="mprice"></div>
+        <div class="detailwholesale" id="mwholesale"></div>
         <div class="detailmeta" id="mmeta"></div>
         <div id="mstock"></div>
       </aside>
@@ -278,6 +283,10 @@ function openProduct(id){
   $('#mcat').textContent=p.category;
   $('#mname').textContent=p.name;
   $('#mprice').textContent=fmtPrice(p.retail_price);
+  const wholesale=$('#mwholesale');
+  const hasWholesale=p.wholesale_price!==null&&p.wholesale_price!==''&&p.wholesale_price!==undefined;
+  wholesale.innerHTML=hasWholesale?`Оптовая цена: <b>${esc(fmtPrice(p.wholesale_price))}</b>`:'';
+  wholesale.classList.toggle('show',hasWholesale);
   $('#mmeta').innerHTML=[p.brand&&`Бренд: <b>${esc(p.brand)}</b>`,p.collection&&`Коллекция: <b>${esc(p.collection)}</b>`,p.mounting&&`Монтаж: <b>${esc(p.mounting)}</b>`].filter(Boolean).join('<br>');
   const sup=supplyText(p);
   $('#mstock').innerHTML='<div class="stock">'+stockHtml(p)+'</div>'+(sup?`<div class="supply">Поставка: ${esc(sup)}</div>`:'');
