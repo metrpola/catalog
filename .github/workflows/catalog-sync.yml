@@ -13,6 +13,7 @@ on:
       - "apple-touch-icon.png"
       - "update_catalog.py"
       - ".github/workflows/catalog-sync.yml"
+
   workflow_dispatch:
     inputs:
       mode:
@@ -24,6 +25,7 @@ on:
           - stock
           - catalog
           - images
+
       product_ids:
         description: GIUD товаров для загрузки изображений, через запятую
         required: false
@@ -38,11 +40,13 @@ permissions:
 concurrency:
   group: metrpola-catalog-update
   cancel-in-progress: false
+  queue: max
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -68,6 +72,8 @@ jobs:
             mode="${REQUESTED_MODE:-stock}"
           fi
 
+          # Если кэш каталога отсутствует, обновление остатков
+          # автоматически превращается в полное обновление каталога.
           if [ "$mode" = "stock" ]; then
             if [ ! -s data/exchange.xml ] || [ ! -s data/catalog-meta.json ]; then
               echo "Catalog cache is missing; switching stock -> catalog"
@@ -76,9 +82,11 @@ jobs:
           fi
 
           echo "update_mode=$mode" >> "$GITHUB_OUTPUT"
+
           echo "Selected mode: $mode"
           echo "### Режим обновления: $mode" >> "$GITHUB_STEP_SUMMARY"
           echo "- Событие: $EVENT_NAME" >> "$GITHUB_STEP_SUMMARY"
+
           if [ -n "$REQUESTED_PRODUCT_IDS" ]; then
             echo "- GIUD изображений: $REQUESTED_PRODUCT_IDS" >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -89,24 +97,43 @@ jobs:
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_PORT: ${{ secrets.FTP_PORT }}
+
           FTP_EXCHANGE_PATH: ${{ secrets.FTP_EXCHANGE_PATH }}
           FTP_QTY_PATH: ${{ secrets.FTP_QTY_PATH }}
           FTP_IMAGES_DIR: ${{ secrets.FTP_IMAGES_DIR }}
+
           UPDATE_MODE: ${{ steps.mode.outputs.update_mode }}
+
           CACHE_EXCHANGE_FILE: data/exchange.xml
           CATALOG_META_FILE: data/catalog-meta.json
           IMAGE_CACHE_FILE: data/image-cache.json
+
           IMAGE_PRODUCT_IDS: ${{ inputs.product_ids }}
+
           IMAGES_DIR: images
           OUTPUT_FILE: _site/catalog-data.js
+
           SYNC_IMAGES: ${{ (steps.mode.outputs.update_mode == 'images' || steps.mode.outputs.update_mode == 'catalog') && '1' || '0' }}
+
+          # ВАЖНО:
+          # изображения, уже сохранённые в GitHub,
+          # автоматически никогда не удаляем.
           PRUNE_IMAGES: "0"
+
         run: |
           set -euo pipefail
+
           mkdir -p _site
+
           cp index.html _site/index.html
 
-          for asset in favicon.ico favicon-32.png favicon-192.png favicon-512.png apple-touch-icon.png; do
+          for asset in \
+            favicon.ico \
+            favicon-32.png \
+            favicon-192.png \
+            favicon-512.png \
+            apple-touch-icon.png
+          do
             if [ -f "$asset" ]; then
               cp "$asset" _site/
             else
@@ -124,12 +151,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ -d data ]; then
             git add -A -- data
           fi
+
           if [ -d images ]; then
             git add -A -- images
           fi
@@ -153,9 +182,11 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
+
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
